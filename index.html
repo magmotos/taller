@@ -589,7 +589,7 @@ var str=function(v,max){return (typeof v==='string'||typeof v==='number')?String
 function cleanRec(col,r){
   if(!okId(r))return null;
   var o={};Object.keys(r).forEach(function(k){if(!BAD_IDS[k])o[k]=r[k];});
-  if(col==='clients'){o.name=str(o.name,200);o.phone=str(o.phone,40);}
+  if(col==='clients'){o.name=str(o.name,200);o.phone=str(o.phone,40);o.address=str(o.address,200);o.city=str(o.city,100);}
   else if(col==='bikes'){o.model=str(o.model,200);o.plate=str(o.plate,12);o.clientId=str(o.clientId,100);}
   else if(col==='orders'){
     o.num=isFinite(Number(o.num))&&Number(o.num)>=0?Math.floor(Number(o.num)):0;
@@ -1193,6 +1193,8 @@ function orderFormHTML(){
       '<label class="field"><span id="dateLbl">Fecha de ingreso</span><input id="f-date" type="date" value="'+esc(o.date)+'"></label>'
       +'<div class="two"><label class="field"><span>Cliente</span><input id="f-name" list="dl-clients" autocomplete="off" placeholder="Nombre y apellido" value="'+esc(c.name)+'"></label>'
       +'<label class="field"><span>Teléfono</span><input id="f-phone" inputmode="tel" placeholder="0123456789" value="'+esc(c.phone)+'"></label></div>'
+      +'<div class="two"><label class="field"><span>Domicilio</span><input id="f-addr" autocomplete="off" placeholder="Calle y número" value="'+esc(c.address||'')+'"></label>'
+      +'<label class="field"><span>Localidad</span><input id="f-city" autocomplete="off" placeholder="Localidad" value="'+esc(c.city||'')+'"></label></div>'
       +'<div class="two"><label class="field"><span id="modelLbl">Moto</span><input id="f-model" autocomplete="off" placeholder="Marca/Modelo" value="'+esc(b.model)+'"></label>'
       +'<label class="field" id="plateField"><span>Patente</span><input id="f-plate" autocomplete="off" maxlength="10" placeholder="AB123CD" value="'+esc(b.plate)+'"></label></div>'
       +'<div id="bikeSuggest" class="block">'+bikeSuggestHTML(c.name)+'</div>')
@@ -1214,11 +1216,11 @@ function orderFormHTML(){
     +'</div>';
 }
 function openOrder(id,edit,bud){
-  var o,c={name:'',phone:''},b={model:'',plate:''},isNew=!(id&&S.orders[id]);
+  var o,c={name:'',phone:'',address:'',city:''},b={model:'',plate:''},isNew=!(id&&S.orders[id]);
   if(!isNew){
     o=clone(S.orders[id]);
     var cc=S.clients[o.clientId],bb=S.bikes[o.bikeId];
-    if(cc)c={name:cc.name||'',phone:cc.phone||''};
+    if(cc)c={name:cc.name||'',phone:cc.phone||'',address:cc.address||'',city:cc.city||''};
     if(bb)b={model:bb.model||'',plate:bb.plate||''};
   }else{
     o={id:uid(),num:nextNum('moto',!!bud),date:isoToday(),kind:'moto',status:'ingresada',tasks:[],parts:[],labor:'',notes:'',warrantyDays:'',deliveredAt:null,createdAt:Date.now()};
@@ -1259,7 +1261,7 @@ function orderSnap(){
   syncParts();
   var v=function(id){var e=$('#'+id);return e?e.value:'';};
   var o=draft.order;
-  return JSON.stringify([v('f-name'),v('f-phone'),v('f-model'),v('f-plate'),v('f-notes'),v('f-date'),v('f-labor'),v('f-warranty'),v('f-valid'),o.status,kindOf(o),o.tasks,o.parts]);
+  return JSON.stringify([v('f-name'),v('f-phone'),v('f-addr'),v('f-city'),v('f-model'),v('f-plate'),v('f-notes'),v('f-date'),v('f-labor'),v('f-warranty'),v('f-valid'),o.status,kindOf(o),o.tasks,o.parts]);
 }
 function updateSave(){
   var bt=$('#saveBtn');if(!bt||!draft||draft.mode!=='edit')return;
@@ -1275,7 +1277,7 @@ function orderViewHTML(){
   var parts=(o.parts||[]).filter(function(p){return String(p.name||'').trim();});
   var hasLabor=o.labor!==''&&o.labor!=null;
   return '<div class="ofrm">'
-    +sec('1','Cliente y equipo',row(bud?'Fecha del presupuesto':(venta?'Fecha de venta':'Fecha de ingreso'),fmtDate(o.date))+row('Cliente',esc(c.name)||'—')+row('Teléfono',esc(c.phone)||'—')+row(EQ[kindOf(o)],esc(b.model)||'—')+(kindOf(o)!=='moto'?'':row('Patente',b.plate?'<span class="plate">'+esc(b.plate)+'</span>':'—')))
+    +sec('1','Cliente y equipo',row(bud?'Fecha del presupuesto':(venta?'Fecha de venta':'Fecha de ingreso'),fmtDate(o.date))+row('Cliente',esc(c.name)||'—')+row('Teléfono',esc(c.phone)||'—')+row('Domicilio',esc(c.address)||'—')+row('Localidad',esc(c.city)||'—')+row(EQ[kindOf(o)],esc(b.model)||'—')+(kindOf(o)!=='moto'?'':row('Patente',b.plate?'<span class="plate">'+esc(b.plate)+'</span>':'—')))
     +(venta||bud?'':sec('2','Estado de orden','<div><span class="pill st-'+esc(o.status)+'">'+STATUS[o.status]+'</span></div>'+(o.deliveredAt?row('Entregada el',fmtDate(o.deliveredAt)):'')))
     +(venta?'':sec('3','Trabajos realizados',tasks.length?tasks.map(function(t){return '<div class="vitem">• '+esc(t)+'</div>';}).join(''):none('Sin trabajos cargados')))
     +(venta?'':sec('4','Repuestos comprados',parts.length?parts.map(function(p){var q=Number(p.qty)>0?Number(p.qty):1;var k=(p.cost===''||p.cost==null)?'':' × '+money(Number(p.cost));return '<div class="vrow"><span class="vv">'+esc(p.name)+'</span><span>'+q+k+'</span></div>';}).join(''):none('Sin repuestos cargados')))
@@ -1296,7 +1298,7 @@ function updateTotal(){
 async function commitOrder(){
   syncParts();
   var g=function(id){return $('#'+id).value.trim();};
-  var name=g('f-name'),phone=g('f-phone'),model=g('f-model'),kind=kindOf(draft.order),plate=kind==='moto'?normPlate(g('f-plate')):'';
+  var name=g('f-name'),phone=g('f-phone'),addr=g('f-addr'),city=g('f-city'),model=g('f-model'),kind=kindOf(draft.order),plate=kind==='moto'?normPlate(g('f-plate')):'';
   var o=draft.order,t=isoToday();
   o.date=$('#f-date').value||t;
   o.labor=$('#f-labor').value===''?'':Math.max(0,Math.floor(Number($('#f-labor').value))||0);
@@ -1318,8 +1320,8 @@ async function commitOrder(){
 
   var key=norm(name).trim();
   var c=name?list('clients').find(function(x){return norm(x.name||'').trim()===key;}):null;
-  var hasC=!!(name||phone);
-  if(hasC){c=c?clone(c):{id:uid(),name:name,createdAt:Date.now()};c.phone=phone||c.phone||'';}else c=null;
+  var hasC=!!(name||phone||addr||city);
+  if(hasC){c=c?clone(c):{id:uid(),name:name,createdAt:Date.now()};c.phone=phone||c.phone||'';c.address=addr||c.address||'';c.city=city||c.city||'';}else c=null;
 
   var orders=list('orders');
   var hasB=!!(model||plate),b=null;
@@ -1351,6 +1353,8 @@ function openClient(id){
     body:'<div id="formErr" class="err" role="alert" hidden></div>'
       +'<label class="field"><span>Nombre</span><input id="c-name" value="'+esc(c.name)+'"></label>'
       +'<label class="field"><span>Teléfono <small>con código de área, sin 0 ni 15</small></span><input id="c-phone" inputmode="tel" value="'+esc(c.phone||'')+'"></label>'
+      +'<div class="two"><label class="field"><span>Domicilio</span><input id="c-addr" value="'+esc(c.address||'')+'"></label>'
+      +'<label class="field"><span>Localidad</span><input id="c-city" value="'+esc(c.city||'')+'"></label></div>'
       +'<div class="block"><span class="label">Equipos</span>'+(bs.length?bs.map(function(b){return '<div class="bike">'+esc(b.model||'Moto')+(b.plate?' <span class="plate">'+esc(b.plate)+'</span>':'')+'</div>';}).join(''):'<span class="hint">Sin motos cargadas.</span>')+'</div>'
       +'<div class="block"><span class="label">Historial</span>'+(os.length?os.map(function(o){return orderCard(o,true);}).join(''):'<span class="hint">Todavía no tiene órdenes.</span>')+'</div>',
     foot:(os.length||listAll('orders').some(function(o){return o.clientId===id;})?'':'<button class="btn danger" data-act="client-del">Eliminar</button>')+'<button class="btn primary" data-act="client-save">Guardar</button>'});
@@ -1421,7 +1425,7 @@ async function exportXlsx(){
     ws['!cols']=widths.map(function(w){return {wch:w};});
     XLSX.utils.book_append_sheet(wb,ws,name);
   };
-  add('Clientes',b.clients.map(function(c){return {'ID':c.id,'Nombre':c.name||'','Teléfono':String(c.phone||''),'Modificado':fmtDT(c.updatedAt)};}),['ID','Nombre','Teléfono','Modificado'],[16,28,18,19]);
+  add('Clientes',b.clients.map(function(c){return {'ID':c.id,'Nombre':c.name||'','Teléfono':String(c.phone||''),'Domicilio':c.address||'','Localidad':c.city||'','Modificado':fmtDT(c.updatedAt)};}),['ID','Nombre','Teléfono','Domicilio','Localidad','Modificado'],[16,28,18,26,18,19]);
   add('Motos',b.bikes.map(function(x){return {'ID':x.id,'ID cliente':x.clientId||'','Modelo':x.model||'','Patente':x.plate||'','Modificado':fmtDT(x.updatedAt)};}),['ID','ID cliente','Modelo','Patente','Modificado'],[16,16,26,12,19]);
   var oh=['ID','Número','Estado','Fecha','ID cliente','ID moto','Cliente','Teléfono','Moto','Patente','Trabajos','Repuestos','Mano de obra','Total','Notas','Garantía (días)','Entregada el','Tipo','Aviso de lista','Presupuesto','Vigencia (días)','Modificado'];
   add('Órdenes',b.orders.slice().sort(function(a,c){return (a.num||0)-(c.num||0);}).map(function(o){
@@ -1455,7 +1459,7 @@ function parseXlsx(buf){
   if(!rc&&!ro)throw new Error('formato');
   var stMap={};Object.keys(STATUS).forEach(function(k){stMap[xlKey(k)]=k;stMap[xlKey(STATUS[k])]=k;});
   var clients=(rc||[]).filter(function(r){return String(r.nombre).trim()||String(r.id).trim();}).map(function(r){
-    return withAt({id:String(r.id).trim()||uid(),name:xlText(r.nombre).trim(),phone:String(r.telefono==null?'':r.telefono).trim()},r.modificado);
+    return withAt({id:String(r.id).trim()||uid(),name:xlText(r.nombre).trim(),phone:String(r.telefono==null?'':r.telefono).trim(),address:xlText(r.domicilio).trim(),city:xlText(r.localidad).trim()},r.modificado);
   });
   var bikes=(rb||[]).filter(function(r){return String(r.modelo).trim()||String(r.patente).trim()||String(r.id).trim();}).map(function(r){
     return withAt({id:String(r.id).trim()||uid(),clientId:String(r.idcliente).trim(),model:xlText(r.modelo).trim(),plate:normPlate(r.patente)},r.modificado);
@@ -1571,116 +1575,130 @@ function buildPdf(o,c,b,logo){
   var row=function(x,t,w,h){rect(x,t,w,h,'card');line(x,t+h,x+w,0.6,'line');};
   var bar=function(title){need(HH+RH);rect(M,y,CW,HH,'card2');rect(M,y,3,HH,'black');text(tx,y+HH/2+3.2,title.toUpperCase(),8.5,true,'white');y+=HH;};
 
-  newPage();
-    y=M+6;
   var kd=kindOf(o),isV=kd==='venta',bud=!!o.budget,vdays=Number(o.validDays)||15;
-  var y0=M+6,lh=70,RW=22,HB=18;
-  var bx=function(x,t,w,h,th){rect(x,t,w,th,'ink');rect(x,t+h-th,w,th,'ink');rect(x,t,th,h,'ink');rect(x+w-th,t,th,h,'ink');};
-  var side=function(t,h){rect(M,t,1,h,'ink');rect(M+CW-1,t,1,h,'ink');};
-  var rule=function(t){rect(M,t,CW,1.6,'ink');};
-  if(logo){ops.push('q '+fnum(lh*logo.w/logo.h)+' 0 0 '+lh+' '+fnum(M)+' '+fnum(PH-y0-lh)+' cm /Im1 Do Q');}
-  else text(M,y0+44,'MAGMOTOS',24,true);
-  text(M,y0+lh+14,'Esmeralda 269, Alejandro Korn, Buenos Aires',8.5,false,'mut');
-  rect(PW/2-26,y0,52,48,'black');text(PW/2-tw('X',34,true)/2,y0+37,'X',34,true,'white');
-  ['Documento no válido','como factura'].forEach(function(l,i){text(PW/2-tw(l,7,false)/2,y0+60+i*9,l,7,false,'mut');});
-  var t1=bud?'PRESUPUESTO':(isV?'VENTA':'TRABAJO'),t2=fmtNum(o),t3='FECHA  '+fmtDate(o.date);
-  text(PW-M-tw(t1,15,true),y0+22,t1,15,true,'ink');
-  text(PW-M-tw(t2,14,true),y0+44,t2,14,true,'ink');
-  text(PW-M-tw(t3,10,true),y0+64,t3,10,true,'mut');
-  y=y0+96;rect(M,y,CW,1.6,'ink');y+=1.6;
-
-  var ct=y+6,crow=[['Señor/es:',c.name,'Teléfono:',c.phone]];
-  if(!isV){crow.push(kd==='moto'?['Moto:',b.model,'Patente:',b.plate]:[EQ[kd]+':',b.model,'','']);if(!bud)crow.push(['Ingreso:',fmtDate(o.date),'Entrega:',o.deliveredAt?fmtDate(o.deliveredAt):'']);}
-  if(bud)crow.push(['Fecha:',fmtDate(o.date),'Válido hasta:',fmtDate(addDays(o.date,vdays))]);
+  var LM=36,LW=PW-2*LM,BOT=PH-62;
+  var rr=function(x,t,w,h,r,lw,fillk){
+    var X=x,Y=PH-t-h,k=r*0.5523,f=function(n){return fnum(n);};
+    ops.push((fillk?col(fillk)+' ':'')+scol('ink')+' '+lw+' w '+f(X+r)+' '+f(Y)+' m '+f(X+w-r)+' '+f(Y)+' l '+f(X+w-r+k)+' '+f(Y)+' '+f(X+w)+' '+f(Y+r-k)+' '+f(X+w)+' '+f(Y+r)+' c '+f(X+w)+' '+f(Y+h-r)+' l '+f(X+w)+' '+f(Y+h-r+k)+' '+f(X+w-r+k)+' '+f(Y+h)+' '+f(X+w-r)+' '+f(Y+h)+' c '+f(X+r)+' '+f(Y+h)+' l '+f(X+r-k)+' '+f(Y+h)+' '+f(X)+' '+f(Y+h-r+k)+' '+f(X)+' '+f(Y+h-r)+' c '+f(X)+' '+f(Y+r)+' l '+f(X)+' '+f(Y+r-k)+' '+f(X+r-k)+' '+f(Y)+' '+f(X+r)+' '+f(Y)+' c h '+(fillk?'B':'S'));
+  };
+  var ln=function(x1,t1,x2,t2,lw){ops.push(scol('ink')+' '+lw+' w '+fnum(x1)+' '+fnum(PH-t1)+' m '+fnum(x2)+' '+fnum(PH-t2)+' l S');};
+  var dots=function(x1,t,x2){ops.push('q '+scol('mut')+' 0.6 w [0.7 2.3] 0 d 1 J '+fnum(x1)+' '+fnum(PH-t)+' m '+fnum(x2)+' '+fnum(PH-t)+' l S Q');};
+  var ctr=function(cx,t,s,size,bold,k,tc){TC=tc||0;var w=tw(s,size,bold)+(tc||0)*s.length;text(cx-w/2+(tc?tc/2:0),t,s,size,bold,k||'ink');TC=0;};
+  var WA_PATH='17.472 14.382 m 17.175 14.233 15.714 13.515 15.442 13.415 c 15.169 13.316 14.971 13.267 14.772 13.565 c 14.575 13.862 14.005 14.531 13.832 14.729 c 13.659 14.928 13.485 14.952 13.188 14.804 c 12.891 14.654 11.933 14.341 10.798 13.329 c 9.915 12.541 9.318 11.568 9.145 11.27 c 8.972 10.973 9.127 10.812 9.275 10.664 c 9.409 10.531 9.573 10.317 9.721 10.144 c 9.87 9.97 9.919 9.846 10.019 9.647 c 10.118 9.449 10.069 9.276 9.994 9.127 c 9.919 8.978 9.325 7.515 9.078 6.92 c 8.836 6.341 8.591 6.42 8.409 6.41 c 8.236 6.402 8.038 6.4 7.839 6.4 c 7.641 6.4 7.319 6.474 7.047 6.772 c 6.775 7.069 6.007 7.788 6.007 9.251 c 6.007 10.713 7.072 12.126 7.22 12.325 c 7.369 12.523 9.316 15.525 12.297 16.812 c 13.006 17.118 13.559 17.301 13.991 17.437 c 14.703 17.664 15.351 17.632 15.862 17.555 c 16.433 17.47 17.62 16.836 17.868 16.142 c 18.116 15.448 18.116 14.853 18.041 14.729 c 17.967 14.605 17.769 14.531 17.471 14.382 c h 12.05 21.785 m 12.046 21.785 l 11.606 21.785 11.166 21.756 10.73 21.697 c 10.294 21.638 9.862 21.551 9.438 21.434 c 9.014 21.318 8.597 21.174 8.192 21.002 c 7.787 20.83 7.393 20.631 7.015 20.407 c 6.654 20.193 l 2.913 21.175 l 3.911 17.527 l 3.676 17.153 l 3.43 16.762 3.212 16.353 3.024 15.931 c 2.835 15.509 2.676 15.074 2.549 14.63 c 2.421 14.186 2.325 13.733 2.261 13.275 c 2.197 12.817 2.165 12.355 2.166 11.893 c 2.167 6.443 6.602 2.009 12.054 2.009 c 14.694 2.009 17.176 3.039 19.042 4.907 c 19.501 5.364 19.914 5.866 20.275 6.404 c 20.635 6.942 20.942 7.516 21.189 8.114 c 21.436 8.713 21.625 9.335 21.75 9.971 c 21.875 10.606 21.937 11.254 21.935 11.901 c 21.932 17.351 17.498 21.785 12.05 21.785 c h 20.463 3.488 m 19.914 2.935 19.31 2.437 18.663 2.003 c 18.016 1.569 17.326 1.199 16.606 0.901 c 15.886 0.602 15.137 0.375 14.373 0.224 c 13.608 0.073 12.829 -0.002 12.05 0 c 5.495 0 0.16 5.335 0.157 11.892 c 0.157 13.988 0.704 16.034 1.745 17.837 c 0.057 24 l 6.362 22.346 l 6.796 22.582 7.244 22.791 7.704 22.972 c 8.163 23.152 8.634 23.304 9.113 23.426 c 9.591 23.548 10.077 23.64 10.567 23.702 c 11.057 23.763 11.551 23.794 12.045 23.794 c 12.05 23.794 l 18.604 23.794 23.94 18.459 23.943 11.901 c 23.945 11.122 23.871 10.343 23.72 9.579 c 23.569 8.815 23.343 8.066 23.045 7.346 c 22.748 6.626 22.379 5.936 21.945 5.289 c 21.512 4.642 21.015 4.038 20.463 3.488 c 20.463 3.488 l h';
+  var wa=function(cx,cy,r){ // mismo ícono de WhatsApp que usa la app (24x24), vectorial
+    var sc=r*2/24;
+    ops.push('q '+col('ink')+' '+fnum(sc)+' 0 0 '+fnum(-sc)+' '+fnum(cx-12*sc)+' '+fnum(PH-cy+12*sc)+' cm '+WA_PATH+' f Q');
+  };
+  // ---------- ENCABEZADO ----------
+  newPage();
+  var y0=LM,HH0=128,xd=LM+235;
+  rr(LM,y0,LW,HH0,12,1);
+  ln(xd,y0+36,xd,y0+HH0,0.8);
+  if(logo){var lh=70,lw2=lh*logo.w/logo.h;ops.push('q '+fnum(lw2)+' 0 0 '+lh+' '+fnum(LM+(xd-LM-lw2)/2)+' '+fnum(PH-y0-12-lh)+' cm /Im1 Do Q');}
+  else ctr((LM+xd)/2,y0+50,'MAGMOTOS',24,true);
+  ctr((LM+xd)/2,y0+HH0-30,'Mecánica de Motos & Grupos Electrógeno',9,true);
+  ctr((LM+xd)/2,y0+HH0-16,'Certificado por la UTN',9,true);
+  rect(xd-22,y0+0.5,44,2,'white'); // oculta el borde superior detrás de la X
+  rr(xd-20,y0,40,36,6,1.2,'white');
+  ctr(xd,y0+28,'X',26,true);
+  rect(xd-38,y0+38,76,22,'white');
+  ctr(xd,y0+46,'NO VÁLIDO',7,true);ctr(xd,y0+55,'COMO FACTURA',7,true);
+  var t1=bud?'PRESUPUESTO':(isV?'VENTA':'TRABAJO'),rcx=(xd+LM+LW)/2;
+  ctr(rcx,y0+24,t1,17,true,'ink',3);
+  ctr(rcx,y0+42,fmtNum(o).replace('N° ','N° '),12,true);
+  var dp=(fmtDate(o.date)||'//').split('/');
+  text(rcx-62,y0+62,'FECHA',9,true);
+  [[dp[0],26],[dp[1],26],[dp[2],40]].reduce(function(x,d){rr(x,y0+50,d[1],17,4,0.8);ctr(x+d[1]/2,y0+62,d[0]||'',9,true);return x+d[1]+5;},rcx-18);
+  wa(rcx-60,y0+84,9);
+  text(rcx-45,y0+91,'2224539133',17,true);
+  ctr(rcx,y0+105,'Esmeralda 269 (1864) A. Korn, Provincia de Buenos Aires',7.5,false);
+  ctr(rcx,y0+117,'Instagram @magmotostaller',7.5,true);
+  y=y0+HH0+8;
+  // ---------- DATOS DEL CLIENTE ----------
+  var crow=[[['Señor(es):',c.name||'',1],['Tel.:',c.phone||'',0.3]],[['Domicilio:',c.address||'',1],['Loc.:',c.city||'',0.45]]];
+  if(!isV){
+    crow.push(kd==='moto'?[['Moto:',b.model||'',1],['Patente:',b.plate||'',0.3]]:[[EQ[kd]+':',b.model||'',1]]);
+    crow.push(bud?[['Fecha:',fmtDate(o.date),0.5],['Válido hasta:',fmtDate(addDays(o.date,vdays)),0.5]]:[['Ingreso:',fmtDate(o.date),0.5],['Entrega:',o.deliveredAt?fmtDate(o.deliveredAt):'',0.5]]);
+  }
+  var CR=19,ch=crow.length*CR+8;
+  rr(LM,y,LW,ch,8,1);
   crow.forEach(function(r,i){
-    var t=ct+i*RW,hw=CW/2-78;
-    if(i)line(M,t,M+CW,0.5,'line');
-    text(M+8,t+15,r[0],9,false,'mut');text(M+70,t+15,fit(r[1]||'',10.5,true,hw),10.5,true,'ink');
-    if(r[2]){text(M+CW/2+8,t+15,r[2],9,false,'mut');text(M+CW/2+70,t+15,fit(r[3]||'',10.5,true,hw),10.5,true,'ink');}
+    var ty=y+4+i*CR+13,xx=LM+10,tot=r.reduce(function(s,f){return s+f[2];},0),avail=LW-20-(r.length-1)*10;
+    r.forEach(function(f){
+      var w=avail*f[2]/tot,lw=tw(f[0],9.5,true);
+      text(xx,ty,f[0],9.5,true);dots(xx+lw+3,ty+1.5,xx+w);
+      if(f[1])text(xx+lw+6,ty-0.5,fit(f[1],10,false,w-lw-8),10,false);
+      xx+=w+10;
+    });
   });
-  bx(M,ct,CW,crow.length*RW,1);
-  y=ct+crow.length*RW+12;
-
+  y+=ch+8;
+  // ---------- TABLA ----------
   var parts=isV?[]:(o.parts||[]),tasks=isV?[]:(o.tasks||[]);
   var pSum=parts.reduce(function(s,p){return s+(Number(p.qty)||0)*(Number(p.cost)||0);},0),labor=Number(o.labor)||0,total=pSum+labor,pm2=pm(total);
-  var secBar=function(title){need(HB+RW);rule(y);rect(M,y+1,CW,HB-1,'black');side(y,HB);text(M+8,y+HB/2+3.2,title.toUpperCase(),8.5,true,'white');y+=HB;line(M,y,M+CW,0.8,'ink');};
-  var cA=M+44,cB=M+CW-170,cC=M+CW-85,thLabel='DESCRIPCIÓN',RH2=20;
-  var drawTH=function(){
-    rule(y);rect(M,y+1,CW,HB-1,'black');side(y,HB);
-    [cA,cB,cC].forEach(function(x){rect(x,y+1,0.8,HB-1,'mut');});
-    var hy=y+HB/2+3;
-    TC=0.7;[['CANT.',M,cA],[thLabel,cA,cB],['P. UNITARIO',cB,cC],['IMPORTE',cC,M+CW]].forEach(function(h){text(h[1]+(h[2]-h[1]-tw(h[0],8.5,false)-0.7*h[0].length)/2,hy,h[0],8.5,false,'white');});TC=0;
-    y+=HB;line(M,y,M+CW,1.6,'ink');
+  var cA=LM+46,cB=LM+LW-170,cC=LM+LW-85,xs=[cA,cB,cC],RH2=19,THH=20,ty0=0,rows=0,pageN=0;
+  var tHead=function(){
+    ty0=y;
+    TC=0;ctr((LM+cA)/2,y+14,'Cant.',9.5,true);ctr((cA+cB)/2,y+14,'Detalle',9.5,true);ctr((cB+cC)/2,y+14,'P. Unit.',9.5,true);ctr((cC+LM+LW)/2,y+14,'P. Final',9.5,true);
+    y+=THH;ln(LM,y,LM+LW,y,0.8);
+  };
+  var tClose=function(){
+    xs.forEach(function(x){ln(x,ty0,x,y,0.8);});
+    rr(LM,ty0,LW,y-ty0,8,1);
+  };
+  var tBreak=function(h){
+    if(y+h<=BOT+0.5)return;
+    tClose();newPage();pageN++;
+    text(LM,y+4,'MAGMOTOS · '+(bud?'Presupuesto ':(isV?'Venta ':'Orden '))+fmtNum(o)+' (continúa)',9,false,'mut');y+=14;
+    tHead();
   };
   var trow=function(it){
-    var ls=it?wrap(it.d,10,true,cB-cA-16):[],rh=Math.max(RH2,14*ls.length+8);
-    var brk=y+rh>PH-78;need(rh);if(brk)drawTH();
-    side(y,rh);[cA,cB,cC].forEach(function(x){rect(x,y,0.8,rh,'line');});
-    line(M,y+rh,M+CW,0.5,'line');
+    var ls=it&&it.d?wrap(it.d,10,!!it.b,cB-cA-14):[],rh=Math.max(RH2,12.5*ls.length+7);
+    tBreak(rh+26);
     if(it){
-      var ty=y+(rh-14*ls.length)/2+10.5,my=y+rh/2+3.5;
-      ls.forEach(function(l,k){text(cA+8,ty+k*14,l,10,true,'ink');});
-      if(it.q)text(M+(cA-M-tw(it.q,10,false))/2,my,it.q,10,false,'ink');
-      if(it.u)text(cC-8-tw(it.u,10,false),my,it.u,10,false,'mut');
-      if(it.i)text(M+CW-8-tw(it.i,10,true),my,it.i,10,true,'ink');
+      var ty=y+(rh-12.5*ls.length)/2+9.5,my=y+rh/2+3.5;
+      ls.forEach(function(l,k){text(cA+7,ty+k*12.5,l,10,!!it.b);});
+      if(it.q)text(LM+(cA-LM-tw(it.q,10,false))/2,my,it.q,10,false);
+      if(it.u)text(cC-7-tw(it.u,10,false),my,it.u,10,false);
+      if(it.i)text(LM+LW-7-tw(it.i,10,true),my,it.i,10,true);
     }
-    y+=rh;
-    return rh;
+    y+=rh;ln(LM,y,LM+LW,y,0.4);rows++;
   };
+  tHead();
   var saleNotes=false;
   if(isV){
-    need(HB+RH2);drawTH();
     var vd=(b.model||'Venta')+(o.notes?' - '+String(o.notes).replace(/\s+/g,' '):'');
-    var vfit=14*wrap(vd,10,true,cB-cA-16).length+8<=PH-78-y-RH2;
-    saleNotes=!vfit&&!!o.notes;
-    var th=trow({q:'1',d:vfit?vd:(b.model||'Venta'),u:total>0?pm2:'',i:total>0?pm2:''});
-    while(th<8*RH2)th+=trow(null);
-    rule(y);y+=14;
+    trow({q:'1',d:vd,u:total>0?pm2:'',i:total>0?pm2:''});
   }else{
-    secBar('Trabajos realizados');
-    if(!tasks.length){need(RH2);side(y,RH2);text(M+10,y+14,'Sin trabajos cargados.',10,false,'mut');y+=RH2;}
-    tasks.forEach(function(t){
-      var ls=wrap(t,10,true,CW-34),rh=14*ls.length+8;need(rh);
-      side(y,rh);line(M,y+rh,M+CW,0.5,'line');
-      text(M+10,y+(rh-14*ls.length)/2+10.5,'•',10,true,'ink');
-      ls.forEach(function(l,k){text(M+22,y+(rh-14*ls.length)/2+10.5+k*14,l,10,true,'ink');});
-      y+=rh;
-    });
-    rule(y);y+=14;
+    if(tasks.length){trow({d:'TRABAJOS REALIZADOS',b:1});tasks.forEach(function(t){trow({d:'• '+t});});}
+    else trow({d:'Sin trabajos cargados.'});
     if(parts.length){
-      thLabel='REPUESTOS COMPRADOS';need(HB+RH2);drawTH();
-      parts.forEach(function(p){
-        var hasC=p.cost!==''&&p.cost!=null;
-        trow({q:String(p.qty),d:p.name,u:hasC?pm(p.cost):'—',i:hasC?pm((Number(p.qty)||0)*(Number(p.cost)||0)):'—'});
-      });
-      rule(y);y+=14;
+      trow({d:'REPUESTOS',b:1});
+      parts.forEach(function(p){var hc=p.cost!==''&&p.cost!=null;trow({q:String(p.qty),d:p.name,u:hc?pm(p.cost):'—',i:hc?pm((Number(p.qty)||0)*(Number(p.cost)||0)):'—'});});
     }
+    if(labor>0)trow({d:'Mano de obra',b:1,i:pm(labor)});
+    if(!bud&&o.notes){trow({d:'OBSERVACIONES',b:1});wrap(o.notes,10,false,cB-cA-14).forEach(function(l){trow({d:l});});}
+    var wd=bud?0:(Number(o.warrantyDays)||0);
+    if(wd>0)trow({d:'Garantía: '+wd+(wd===1?' día':' días')+' desde la entrega.',b:1});
   }
-  if(total>0){
-    var BW=210,bx0=M+CW-BW,srows=[];
-    if(!isV){if(pSum>0)srows.push(['Repuestos',pm(pSum)]);if(labor>0)srows.push(['Mano de obra',pm(labor)]);}
-    var hgt=srows.length*18+30;need(hgt+16);
-    var by=y;
-    srows.forEach(function(r,i){text(bx0+10,by+i*18+13,r[0],9.5,false,'mut');text(bx0+BW-10-tw(r[1],10,true),by+i*18+13,r[1],10,true,'ink');line(bx0,by+(i+1)*18,bx0+BW,0.5,'line');});
-    var ty2=by+srows.length*18;
-    text(bx0+10,ty2+20,'TOTAL',10.5,true,'ink');text(bx0+BW-10-tw(pm2,16,true),ty2+21,pm2,16,true,'ink');
-    bx(bx0,by,BW,hgt,1.2);
-    y=by+hgt+16;
-  }
-  if(!bud&&(!isV||saleNotes)&&o.notes){
-    secBar('Observaciones');
-    wrap(o.notes,10,false,CW-20).forEach(function(l){need(15);side(y,15);text(M+10,y+11,l,10,false,'ink');y+=15;});
-    rule(y);y+=14;
-  }
-  var wd=bud?0:(Number(o.warrantyDays)||0),extra=[];
-  if(wd>0)extra.push(['Garantía: '+wd+(wd===1?' día':' días')+' desde la entrega'+'.','ink']);
-  if(extra.length){need(20*extra.length);extra.forEach(function(l){text(M,y+10,l[0],10.5,true,l[1]);y+=17;});}
+  // relleno hasta 14 renglones (como el talonario) sin forzar nueva página
+  var padN=Math.floor((BOT-26-y)/RH2);
+  if(padN>0){var ph=(BOT-26-y)/padN;for(var pi=0;pi<padN;pi++){y+=ph;ln(LM,y,LM+LW,y,0.4);}}
+  tBreak(26);
+  rect(LM,y,LW,0.01,'ink');
+  var TH2=26;
+  ln(cC,y,cC,y+TH2,0.8);
+  text(cC-10-tw('Total $',12,true),y+17.5,'Total $',12,true);
+  var tv=total>0?pm2.replace('$',''):'';
+  if(tv)text(LM+LW-7-tw(tv,12,true),y+17.5,tv,12,true);
+  y+=TH2;
+  tClose();
+  y+=10;
   pages.forEach(function(pg,i){
     ops=pg;
-    line(M,PH-58,M+CW,0.6,'line');
-    text(M,PH-42,(bud?'Presupuesto de referencia':(kd==='venta'?'Comprobante de venta':'Detalle de trabajo'))+'. No es una factura ni tiene validez fiscal.',10,false,'mut');
-    text(M,PH-27,'Instagram @magmotostaller',10,false,'mut');
-    var pn='Página '+(i+1)+' de '+pages.length;text(PW-M-tw(pn,10,false),PH-42,pn,10,false,'mut');
+    var lg=(bud?'Presupuesto de referencia':(kd==='venta'?'Comprobante de venta':'Detalle de trabajo'))+'. No es una factura ni tiene validez fiscal.';
+    line(LM,PH-50,LM+LW,0.5,'line');
+    text(LM,PH-38,lg,8,false,'mut');
+    var pn='Página '+(i+1)+' de '+pages.length;text(LM+LW-tw(pn,8,false),PH-38,pn,8,false,'mut');
   });
 
   var enc=new TextEncoder(),chunks=[],len=0,offs=[],hasImg=!!logo,first=hasImg?6:5,np=pages.length;
@@ -1802,7 +1820,7 @@ var ACTS={
   'client-save':async function(){
     var name=$('#c-name').value.trim();
     if(!name){var e=$('#formErr');e.textContent='El cliente necesita un nombre.';e.hidden=false;return;}
-    var c=clone(S.clients[draft.clientId]);c.name=name;c.phone=$('#c-phone').value.trim();
+    var c=clone(S.clients[draft.clientId]);c.name=name;c.phone=$('#c-phone').value.trim();c.address=$('#c-addr').value.trim();c.city=$('#c-city').value.trim();
     if(await attempt(function(){return put('clients',c.id,c);})){closeSheet();toast('Cliente guardado');}
   },
   'client-del':async function(el){
@@ -1950,6 +1968,8 @@ function onChange(e){
   if(draft&&draft.order&&t.id==='f-name'){
     var c=list('clients').find(function(x){return norm(x.name||'').trim()===norm(t.value).trim();});
     if(c&&!$('#f-phone').value.trim())$('#f-phone').value=c.phone||'';
+    if(c&&!$('#f-addr').value.trim())$('#f-addr').value=c.address||'';
+    if(c&&!$('#f-city').value.trim())$('#f-city').value=c.city||'';
     $('#bikeSuggest').innerHTML=bikeSuggestHTML(t.value);
   }
   if(draft&&draft.order&&t.id==='f-plate'){
@@ -1958,7 +1978,7 @@ function onChange(e){
     if(b){
       if(!$('#f-model').value.trim())$('#f-model').value=b.model||'';
       var owner=S.clients[b.clientId];
-      if(owner&&!$('#f-name').value.trim()){$('#f-name').value=owner.name||'';$('#f-phone').value=owner.phone||'';$('#bikeSuggest').innerHTML=bikeSuggestHTML(owner.name);}
+      if(owner&&!$('#f-name').value.trim()){$('#f-name').value=owner.name||'';$('#f-phone').value=owner.phone||'';$('#f-addr').value=owner.address||'';$('#f-city').value=owner.city||'';$('#bikeSuggest').innerHTML=bikeSuggestHTML(owner.name);}
     }
   }
 }
