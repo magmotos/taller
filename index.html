@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="es-419"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>magmotostaller</title>
+<html lang="es-419"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>magmotostaller</title>
 <meta property="og:title" content="magmotostaller">
-<meta property="og:type" content="website"><meta property="og:url" content="https://magmotos.github.io/taller/"><meta property="og:image" content="https://magmotos.github.io/taller/magmotostaller-og.jpg"><meta property="og:image:width" content="800"><meta property="og:image:height" content="800"><meta name="twitter:card" content="summary"><meta name="theme-color" content="#000000"><link rel="icon" type="image/png" href="magmotostaller-icon.png"><link rel="apple-touch-icon" href="magmotostaller-icon.png"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap"><style>html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}*,*::before,*::after{-webkit-tap-highlight-color:transparent}
+<meta property="og:type" content="website"><meta property="og:url" content="https://magmotos.github.io/taller/"><meta property="og:image" content="https://magmotos.github.io/taller/magmotostaller-og.jpg"><meta property="og:image:width" content="800"><meta property="og:image:height" content="800"><meta name="twitter:card" content="summary"><link rel="icon" type="image/png" href="magmotostaller-icon.png"><link rel="apple-touch-icon" href="magmotostaller-icon.png"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap"><style>html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}*,*::before,*::after{-webkit-tap-highlight-color:transparent}
 :root:root :is(button,a,summary,label,select,input,textarea,[tabindex]):is(:focus,:focus-visible,:active){outline:0 none;box-shadow:none}
 :root:root :is(.btn,.icon-btn,.chip,.tab,.card,.seg button):focus-visible{outline:1px solid #fff;outline-offset:1px}
 :root{accent-color:#fff}
@@ -940,7 +940,7 @@ function trendMonths(){
 }
 function trendMonthName(k){
   var p=k.split('-'),n=MESES[Number(p[1])-1]||'';
-  return n.charAt(0).toUpperCase()+n.slice(1)+p[0];
+  return n.charAt(0).toUpperCase()+n.slice(1)+' '+p[0];
 }
 function trendPrevMonth(k){
   var p=k.split('-'),y=Number(p[0]),m=Number(p[1])-1;
@@ -1475,7 +1475,7 @@ function parseXlsx(buf){
       parts:xlText(r.repuestos).split('\n').map(function(l){
         var a=l.split('|');return {name:(a[0]||'').trim(),qty:Math.max(1,Math.floor(Number(xlNum(a[1])))||1),cost:xlInt(a[2])};
       }).filter(function(p){return p.name;}),
-      labor:xlInt(r.manodeobra),notes:xlText(r.notas),warrantyDays:xlNum(r.garantiadias),
+      labor:xlInt(r.manodeobra),notes:xlText(r.notas),warrantyDays:(String(r.garantiadias==null?'':r.garantiadias).trim()===''?'':xlNum(r.garantiadias)),
       deliveredAt:xlDate(r.entregadael)||null,
       kind:(function(t){t=String(t==null?'':t).toLowerCase();return t.indexOf('gener')===0?'generador':t.indexOf('desm')===0?'desmalezadora':t.indexOf('vent')===0?'venta':'moto';})(r.tipo)
     };
@@ -1782,7 +1782,7 @@ var ACTS={
     var o=clone(S.orders[id]);if(!o||!o.budget)return;
     var was=fmtNum(o);
     delete o.budget;delete o.validDays;
-    o.num=nextNum(o.kind||'moto',false);o.status='ingresada';o.date=isoToday();o.deliveredAt=null;delete o.readyAt;
+    o.num=nextNum(o.kind||'moto',false);o.status=(o.kind==='venta')?'lista':'ingresada';o.date=isoToday();o.deliveredAt=null;delete o.readyAt;
     if(bumpCounter(np,o.num))pushCounters();
     if(await attempt(function(){return put('orders',id,o);})){
       if(typeof closeSheet==='function'&&document.querySelector('.sheet'))closeSheet();
@@ -2055,4 +2055,31 @@ function bindEvents(){
 init();
 })();
 </script>
-</body></html>
+<script>
+/* Auto-actualización: consulta la versión publicada sin caché y recarga si cambió (nunca mientras se escribe o hay una hoja abierta) */
+(function(){
+  var K='mmt_last_modified';
+  function busy(){
+    var a=document.activeElement;
+    return !!((a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))||document.querySelector('.sheet-wrap,.cfm-wrap'));
+  }
+  function check(){
+    if(document.hidden||!navigator.onLine)return;
+    fetch(location.pathname,{method:'HEAD',cache:'no-store'}).then(function(r){
+      var v=r.headers.get('last-modified')||r.headers.get('etag');
+      if(!v)return;
+      var prev=null;try{prev=localStorage.getItem(K)}catch(e){}
+      if(prev&&prev!==v){
+        if(busy())return;
+        try{localStorage.setItem(K,v)}catch(e){}
+        location.replace(location.pathname+'?v='+Date.now());
+        return;
+      }
+      try{localStorage.setItem(K,v)}catch(e){}
+    }).catch(function(){});
+  }
+  check();
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)check()});
+  setInterval(check,300000);
+})();
+</script></body></html>
